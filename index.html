@@ -290,31 +290,6 @@
   }
 
   /* ---- 底部筛选 ---- */
-  footer{
-    display:flex;align-items:center;justify-content:flex-end;gap:10px;
-    flex-wrap:wrap;margin-top:18px;font-size:13px;color:var(--muted);
-  }
-  .clear{border:none;background:none;color:var(--muted);cursor:pointer;
-    padding:5px 8px;font-size:13px;text-decoration:underline;text-underline-offset:3px}
-  .clear:hover{color:var(--accent)}
-
-  /* ---- 时刻表 ---- */
-  .tt{margin-top:16px;background:rgba(17,27,47,.72);
-    -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
-    border:1px solid var(--line);border-radius:10px;overflow:hidden;
-    box-shadow:0 4px 24px rgba(0,0,0,.35)}
-  .tt table{width:100%;border-collapse:collapse;font-size:14px}
-  .tt td{padding:8px 14px;border-top:1px solid var(--line);vertical-align:top}
-  .tt tr:first-child td{border-top:none}
-  .tt .thour{width:64px;color:var(--accent);white-space:nowrap;font-weight:500;
-    font-family:ui-monospace,Consolas,"Courier New",monospace;
-    font-variant-numeric:tabular-nums}
-  .tt tr.now td{background:var(--accent-soft)}
-  .tt .titem{display:flex;gap:8px;cursor:pointer;align-items:baseline}
-  .tt .titem:hover{color:var(--accent)}
-  .tt .titem .t{color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums;flex:none}
-  .tt .titem.done .name{color:var(--muted);text-decoration:line-through}
-  .tt .tnote{padding:14px;color:var(--muted);font-size:13px;text-align:center}
   @keyframes flashbg{0%{background:var(--accent-soft)}100%{background:transparent}}
   li.flash{animation:flashbg 1.2s ease}
 
@@ -397,12 +372,6 @@
 
   <ul id="list"></ul>
   <div class="empty" id="empty" hidden>纸上还空着<small>写下今天的第一件事</small></div>
-
-  <footer id="footer" hidden>
-    <button class="clear" id="ttToggle" aria-expanded="false">时刻表</button>
-  </footer>
-
-  <div class="tt" id="ttPanel" hidden></div>
 
   <div class="lightbox" id="lightbox" hidden></div>
 </main>
@@ -658,9 +627,6 @@
 
     var emptyState=list.length===0;
     document.getElementById('empty').hidden=!emptyState;
-    document.getElementById('footer').hidden=emptyState;
-    if(!document.getElementById('ttPanel').hidden)renderTimetable();
-    else document.getElementById('ttPanel').innerHTML='';
   }
 
   function toggle(id){
@@ -805,63 +771,10 @@
     if(!panel.contains(e.target))closeCal();
   });
   document.addEventListener('keydown',function(e){if(e.key==='Escape')closeCal()});
-  document.getElementById('ttToggle').addEventListener('click',function(){
-    var panel=document.getElementById('ttPanel');
-    panel.hidden=!panel.hidden;
-    this.setAttribute('aria-expanded',String(!panel.hidden));
-    render();
-  });
-
-  function renderTimetable(){
-    var panel=document.getElementById('ttPanel');
-    panel.innerHTML='';
-    var list=load();
-    var byP=[[],[],[]];var done=[];
-    list.forEach(function(x){
-      if(x.done){done.push(x);return}
-      byP[x.period||0].push(x);
-    });
-    byP.forEach(function(arr){arr.sort(function(a,b){return b.pri-a.pri||a.created-b.created})});
-    var curP=isToday()?currentPeriod():-1;
-
-    var table=document.createElement('table');
-    function row(cls,label){
-      var tr=document.createElement('tr');
-      if(cls)tr.className=cls;
-      var td1=document.createElement('td');td1.className='thour';
-      td1.textContent=label;
-      var td2=document.createElement('td');
-      tr.append(td1,td2);table.append(tr);
-      return td2;
-    }
-    function item(x){
-      var div=document.createElement('div');
-      div.className='titem'+(x.done?' done':'');
-      var tag=document.createElement('span');tag.className='ptag';tag.dataset.v=x.pri;tag.textContent=PRI[x.pri];
-      var n=document.createElement('span');n.className='name';n.textContent=x.text;
-      div.append(tag,n);
-      div.addEventListener('click',function(){
-        var li=document.querySelector('li[data-id="'+x.id+'"]');
-        if(li){li.scrollIntoView({block:'center',behavior:'smooth'});
-          li.classList.remove('flash');void li.offsetWidth;li.classList.add('flash');}
-      });
-      return div;
-    }
-    PERIOD.forEach(function(label,i){
-      if(!byP[i].length)return;
-      var td=row(i===curP?'now':'',label);
-      byP[i].forEach(function(x){td.append(item(x))});
-    });
-    if(!table.children.length){
-      var note=document.createElement('div');
-      note.className='tnote';note.textContent='今天还没有安排，先添加一条待办吧';
-      panel.append(note);
-    }else{
-      panel.append(table);
-    }
-  }
 
   render();
+
+  // 顶栏实时时钟
 
   // 顶栏实时时钟
   var clockEl=document.getElementById('clock');
