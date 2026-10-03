@@ -319,7 +319,9 @@
   .lightbox{position:fixed;inset:0;z-index:50;padding:24px;
     background:rgba(3,8,18,.88);
     -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
-    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px}
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+    opacity:0;transition:opacity .25s ease}
+  .lightbox.open{opacity:1}
   .lightbox[hidden]{display:none}
   .lightbox img{max-width:92vw;max-height:76vh;border-radius:8px;
     border:1px solid var(--line);box-shadow:0 8px 40px rgba(0,0,0,.5)}
@@ -486,26 +488,67 @@
     if(e.dataTransfer.files[0])compressImage(e.dataTransfer.files[0],setPending);
   });
 
-  /* ---- 看大图 / 删图 ---- */
-  function openLightbox(id){
+  /* ---- 看大图 / 删图（共享元素动画） ---- */
+  var reduceMotion=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var lbTaskId=null;
+  function openLightbox(id,thumbEl){
     var x=load().find(function(t){return t.id===id});
     if(!x||!x.img)return;
+    lbTaskId=id;
     var lb=document.getElementById('lightbox');
-    lb.innerHTML='';
+    lb.innerHTML='';delete lb.dataset.closing;
     var im=document.createElement('img');im.src=x.img;im.alt=x.text;
     var bar=document.createElement('div');bar.className='lbbar';
     var del=document.createElement('button');del.className='lbbtn danger';del.textContent='删除图片';
     del.addEventListener('click',function(){
       var list=load();list.forEach(function(t){if(t.id===id)t.img=null});
-      save(list);closeLightbox();render();
+      save(list);render();closeLightbox();
     });
     var close=document.createElement('button');close.className='lbbtn';close.textContent='关闭';
     close.addEventListener('click',closeLightbox);
     bar.append(del,close);
     lb.append(im,bar);
     lb.hidden=false;
+    // 共享元素：先量缩略图位置，展开动画从那里起步
+    var from=thumbEl?thumbEl.getBoundingClientRect():null;
+    if(reduceMotion||!from||!im.animate){lb.classList.add('open');return}
+    lb.style.opacity='0';
+    requestAnimationFrame(function(){
+      var to=im.getBoundingClientRect();
+      lb.style.opacity='';lb.classList.add('open');
+      im.style.transformOrigin='top left';
+      im.animate([
+        {transform:'translate('+(from.left-to.left)+'px,'+(from.top-to.top)+'px) scale('+(from.width/to.width)+','+(from.height/to.height)+')',borderRadius:'6px'},
+        {transform:'none',borderRadius:'8px'}
+      ],{duration:300,easing:'cubic-bezier(.2,.7,.3,1)'});
+    });
   }
-  function closeLightbox(){document.getElementById('lightbox').hidden=true}
+  function closeLightbox(){
+    var lb=document.getElementById('lightbox');
+    if(lb.hidden||lb.dataset.closing)return;
+    var im=lb.querySelector('img');
+    function finish(){
+      if(lb.dataset.closing!=='1')return; // 期间又被打开则放弃清理
+      lb.classList.remove('open');lb.hidden=true;lb.innerHTML='';lbTaskId=null;
+    }
+    if(reduceMotion||!im||!im.animate){lb.dataset.closing='1';finish();return}
+    lb.dataset.closing='1';
+    var from=im.getBoundingClientRect();
+    var li=lbTaskId?document.querySelector('li[data-id="'+lbTaskId+'"]'):null;
+    var thumb=li?li.querySelector('.thumb'):null;
+    var to=thumb?thumb.getBoundingClientRect():null;
+    lb.classList.remove('open'); // 背景同步淡出，图片单独飞回
+    var anim;
+    if(to){ // 缩回缩略图的最新位置（期间列表重排也能找回）
+      anim=im.animate([
+        {transform:'none',borderRadius:'8px'},
+        {transform:'translate('+(to.left-from.left)+'px,'+(to.top-from.top)+'px) scale('+(to.width/from.width)+','+(to.height/from.height)+')',borderRadius:'6px',opacity:.85}
+      ],{duration:280,easing:'cubic-bezier(.4,0,.7,.2)',fill:'forwards'});
+    }else{  // 图片已删除或任务不在：原地淡出
+      anim=im.animate([{opacity:1},{opacity:0}],{duration:200,fill:'forwards'});
+    }
+    anim.onfinish=finish;
+  }
   document.getElementById('lightbox').addEventListener('click',function(e){
     if(e.target===this)closeLightbox();
   });
@@ -559,7 +602,7 @@
         var th=document.createElement('img');
         th.className='thumb';th.src=x.img;th.alt='附图';
         th.title='点击查看大图';
-        th.addEventListener('click',function(){openLightbox(x.id)});
+        th.addEventListener('click',function(){openLightbox(x.id,th)});
         li.append(th);
       }
 
