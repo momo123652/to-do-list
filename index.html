@@ -227,6 +227,10 @@
   .pdot{flex:none;width:8px;height:8px;border-radius:50%;background:var(--lo)}
   .pdot[data-v="2"]{background:var(--hi)}
   .pdot[data-v="1"]{background:var(--mid)}
+  .ptag{flex:none;font-size:11px;line-height:1.7;padding:0 8px;border-radius:9px}
+  .ptag[data-v="2"]{color:var(--hi);background:rgba(248,113,113,.13)}
+  .ptag[data-v="1"]{color:var(--mid);background:rgba(251,191,36,.13)}
+  .ptag[data-v="0"]{color:var(--muted);background:rgba(140,163,191,.14)}
   .time{flex:none;font-size:13px;color:var(--muted);
     font-family:ui-monospace,Consolas,"Courier New",monospace;
     font-variant-numeric:tabular-nums}
@@ -584,8 +588,8 @@
       if(x.done)li.className='done';
       li.dataset.id=x.id;
 
-      var dot=document.createElement('span');
-      dot.className='pdot';dot.dataset.v=x.pri;dot.title=PRI[x.pri];
+      var tag=document.createElement('span');
+      tag.className='ptag';tag.dataset.v=x.pri;tag.textContent=PRI[x.pri];
 
       var ck=document.createElement('button');
       ck.className='check';ck.type='button';
@@ -597,7 +601,7 @@
       task.title='双击编辑';
       task.addEventListener('dblclick',function(){edit(li,x.id,x.text)});
 
-      li.append(dot,ck,task);
+      li.append(ck,task,tag);
       if(x.img){
         var th=document.createElement('img');
         th.className='thumb';th.src=x.img;th.alt='附图';
@@ -816,9 +820,9 @@
     function item(x){
       var div=document.createElement('div');
       div.className='titem'+(x.done?' done':'');
-      var dot=document.createElement('span');dot.className='pdot';dot.dataset.v=x.pri;
+      var tag=document.createElement('span');tag.className='ptag';tag.dataset.v=x.pri;tag.textContent=PRI[x.pri];
       var n=document.createElement('span');n.className='name';n.textContent=x.text;
-      div.append(dot,n);
+      div.append(tag,n);
       div.addEventListener('click',function(){
         var li=document.querySelector('li[data-id="'+x.id+'"]');
         if(li){li.scrollIntoView({block:'center',behavior:'smooth'});
