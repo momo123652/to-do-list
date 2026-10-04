@@ -274,7 +274,8 @@
     align-self:center}
   li.sechead.gm .sdot{background:var(--mid);box-shadow:0 0 6px rgba(251,191,36,.5)}
   li.sechead.gn .sdot{background:var(--accent);box-shadow:0 0 6px rgba(34,211,238,.5)}
-  li.sechead.gw .sdot{background:#A78BFA;box-shadow:0 0 6px rgba(167,139,250,.5)}
+  li.sechead.ga .sdot{background:#A78BFA;box-shadow:0 0 6px rgba(167,139,250,.5)}
+  li.sechead.gw .sdot{background:#60A5FA;box-shadow:0 0 6px rgba(96,165,250,.5)}
   li.sechead.gd .sdot{background:var(--muted)}
   li.sechead .cnt{color:var(--muted);font-size:12px;font-weight:400;
     font-family:ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums}
@@ -379,9 +380,23 @@
 <script>
 (function(){
   var KEY='dayplan.v1.';
+  // 时段从 3 档扩为 4 档：旧数据里 period=2（晚上）整体平移为 3
+  if(!localStorage.getItem('dayplan.pm3')){
+    for(var _i=0;_i<localStorage.length;_i++){
+      var _k=localStorage.key(_i);
+      if(_k&&_k.indexOf(KEY)===0){
+        try{
+          var _arr=JSON.parse(localStorage.getItem(_k));
+          _arr.forEach(function(x){if(x.period===2)x.period=3});
+          localStorage.setItem(_k,JSON.stringify(_arr));
+        }catch(e){}
+      }
+    }
+    localStorage.setItem('dayplan.pm3','1');
+  }
   var PRI=['普通','重要','紧急'];
-  var PERIOD=['早上','中午','晚上'];
-  function currentPeriod(){var h=new Date().getHours();return h<12?0:h<18?1:2}
+  var PERIOD=['早上','中午','下午','晚上'];
+  function currentPeriod(){var h=new Date().getHours();return h<12?0:h<14?1:h<18?2:3}
   var state={date:todayStr(),pri:0,period:currentPeriod()};
 
   function todayStr(){var d=new Date();return fmt(d)}
@@ -394,7 +409,7 @@
       // 旧数据迁移：具体时间 → 时段
       list.forEach(function(x){
         if(x.period==null){
-          if(x.time){var h=+x.time.slice(0,2);x.period=h<12?0:h<18?1:2}
+          if(x.time){var h=+x.time.slice(0,2);x.period=h<12?0:h<14?1:h<18?2:3}
           else x.period=1;
           delete x.time;
         }
@@ -617,7 +632,8 @@
 
     [{cls:'gm',label:'早上',items:shown.filter(function(x){return !x.done&&x.period===0})},
      {cls:'gn',label:'中午',items:shown.filter(function(x){return !x.done&&x.period===1})},
-     {cls:'gw',label:'晚上',items:shown.filter(function(x){return !x.done&&x.period===2})},
+     {cls:'ga',label:'下午',items:shown.filter(function(x){return !x.done&&x.period===2})},
+     {cls:'gw',label:'晚上',items:shown.filter(function(x){return !x.done&&x.period===3})},
      {cls:'gd',label:'已完成',items:shown.filter(function(x){return x.done})}
     ].forEach(function(g){
       if(!g.items.length)return;
@@ -690,7 +706,7 @@
     b.dataset.v=state.period;b.textContent=PERIOD[state.period];
   }
   document.getElementById('periodBtn').addEventListener('click',function(){
-    state.period=(state.period+1)%3;syncPeriod();
+    state.period=(state.period+1)%PERIOD.length;syncPeriod();
   });
   document.getElementById('prevDay').addEventListener('click',function(){shift(-1)});
   document.getElementById('nextDay').addEventListener('click',function(){shift(1)});
