@@ -422,6 +422,7 @@
       <div class="rembtns">
         <button id="remNtfy" type="button">ntfy 推送</button>
         <button id="remIcs" type="button">下载日历文件</button>
+        <button id="remAllIcs" type="button">导出全部提醒</button>
         <button id="remClose" type="button">关闭</button>
       </div>
     </div>
@@ -688,6 +689,37 @@
     setTimeout(function(){URL.revokeObjectURL(a.href)},1000);
     setRemind(remTaskId,v);
     document.getElementById('remStatus').textContent='✅ 日历文件已下载，打开它导入系统日历即可';
+  });
+  document.getElementById('remAllIcs').addEventListener('click',function(){
+    var evs=[];
+    for(var i=0;i<localStorage.length;i++){
+      var k=localStorage.key(i);
+      if(!k||k.indexOf(KEY)!==0)continue;
+      try{
+        JSON.parse(localStorage.getItem(k)).forEach(function(x){
+          if(!x.remind)return;
+          var s=new Date(x.remind);
+          if(isNaN(s)||s<=new Date())return;
+          var e=new Date(s.getTime()+15*60000);
+          function f(d){
+            function p(n){return String(n).padStart(2,'0')}
+            return d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'T'+p(d.getHours())+p(d.getMinutes())+'00';
+          }
+          evs.push(['BEGIN:VEVENT','UID:'+Date.now()+'-'+Math.random().toString(36).slice(2)+'@dayplan.local',
+            'DTSTART:'+f(s),'DTEND:'+f(e),'SUMMARY:⏰ 待办：'+x.text,
+            'BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:待办提醒','TRIGGER:PT0M','END:VALARM','END:VEVENT'].join('\r\n'));
+        });
+      }catch(e){}
+    }
+    if(!evs.length){document.getElementById('remStatus').textContent='⚠️ 还没有未过期的提醒，先给某条待办设一个';return}
+    var ics=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//dayplan//CN']
+      .concat(evs).concat(['END:VCALENDAR']).join('\r\n');
+    var blob=new Blob([ics],{type:'text/calendar'});
+    var a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);a.download='全部待办提醒.ics';
+    document.body.appendChild(a);a.click();a.remove();
+    setTimeout(function(){URL.revokeObjectURL(a.href)},1000);
+    document.getElementById('remStatus').textContent='✅ 已导出 '+evs.length+' 条提醒到一个日历文件，一次导入即可';
   });
 
   function render(){
