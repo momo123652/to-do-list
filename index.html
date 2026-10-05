@@ -651,21 +651,27 @@
     localStorage.setItem('dayplan.ntfy',topic);
     var btn=this;btn.disabled=true;
     var text=document.getElementById('remTaskName').textContent;
-    fetch('https://ntfy.sh/'+encodeURIComponent(topic),{
-      method:'POST',
+    var base='https://ntfy.sh/'+encodeURIComponent(topic);
+    var okMsg='✅ 已提交 ntfy，约 '+dur.replace(/(\d)([hm])/g,'$1$2 ')+' 后送达，浏览器关闭也会推';
+    function done(ok,err){
+      btn.disabled=false;
+      if(ok){st.textContent=okMsg;setRemind(remTaskId,v)}
+      else st.textContent=err;
+    }
+    fetch(base,{method:'POST',
       headers:{'Title':'⏰ 待办提醒','Priority':'high','Tags':'bell','Delay':dur},
-      body:text
-    }).then(function(r){
-      btn.disabled=false;
-      if(r.ok){
-        st.textContent='✅ 已提交 ntfy，约 '+dur.replace(/(\d)([hm])/g,'$1$2 ')+'后送达，浏览器关闭也会推';
-        setRemind(remTaskId,v);
-      }else{
-        r.text().then(function(t){st.textContent='❌ ntfy 返回错误：'+t.slice(0,90)});
-      }
-    }).catch(function(){
-      btn.disabled=false;
-      st.textContent='❌ 发送失败（ntfy.sh 可能被网络拦截），可改用日历文件';
+      body:text})
+    .catch(function(){ // POST(带自定义头)失败：换 GET 查询参数方式重试（无 CORS 预检）
+      return fetch(base+'/publish?title='+encodeURIComponent('⏰ 待办提醒')+
+        '&priority=high&tags=bell&delay='+dur+'&message='+encodeURIComponent(text));
+    })
+    .then(function(r){
+      if(!r)throw new Error('no');
+      if(r.ok){done(true)}
+      else r.text().then(function(t){done(false,'❌ ntfy 返回错误：'+t.slice(0,90))});
+    })
+    .catch(function(){
+      done(false,'❌ 两种请求方式都失败：当前网络可能拦截了 ntfy.sh，试试切换 Wi-Fi/流量再发，或改用日历文件');
     });
   });
   document.getElementById('remIcs').addEventListener('click',function(){
