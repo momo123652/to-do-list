@@ -244,7 +244,9 @@
   .pdot{flex:none;width:8px;height:8px;border-radius:50%;background:var(--lo)}
   .pdot[data-v="2"]{background:var(--hi)}
   .pdot[data-v="1"]{background:var(--mid)}
-  .ptag{flex:none;font-size:11px;line-height:1.7;padding:0 8px;border-radius:9px}
+  .ptag{flex:none;font-size:11px;line-height:1.7;padding:0 8px;border-radius:9px;
+    cursor:pointer;user-select:-webkit-user-select;user-select:none;transition:filter .15s}
+  .ptag:hover{filter:brightness(1.35)}
   .ptag[data-v="2"]{color:var(--hi);background:rgba(248,113,113,.13)}
   .ptag[data-v="1"]{color:var(--mid);background:rgba(251,191,36,.13)}
   .ptag[data-v="0"]{color:var(--muted);background:rgba(140,163,191,.14)}
@@ -591,6 +593,14 @@
 
       var tag=document.createElement('span');
       tag.className='ptag';tag.dataset.v=x.pri;tag.textContent=PRI[x.pri];
+      tag.title='点击更改重要程度';
+      tag.addEventListener('click',function(){
+        var list=load();
+        var t=list.find(function(z){return z.id===x.id});
+        if(!t)return;
+        t.pri=(t.pri+1)%PRI.length;
+        save(sortList(list));render();
+      });
 
       var ck=document.createElement('button');
       ck.className='check';ck.type='button';
@@ -787,6 +797,62 @@
     if(!panel.contains(e.target))closeCal();
   });
   document.addEventListener('keydown',function(e){if(e.key==='Escape')closeCal()});
+
+  // 触摸左右滑动切换相邻日期（跟手拖动 + 滑出/滑入转场）
+  var sheet=document.querySelector('.sheet');
+  var swipe={x0:0,y0:0,dx:0,lock:null,animating:false};
+  function swipeReset(){sheet.style.transform='';sheet.style.opacity=''}
+  sheet.addEventListener('touchstart',function(e){
+    if(swipe.animating||e.touches.length!==1)return;
+    swipe.x0=e.touches[0].clientX;
+    swipe.y0=e.touches[0].clientY;
+    swipe.dx=0;swipe.lock=null;
+  },{passive:true});
+  sheet.addEventListener('touchmove',function(e){
+    if(swipe.animating||swipe.lock==='no')return;
+    var t=e.touches[0];
+    var dx=t.clientX-swipe.x0,dy=t.clientY-swipe.y0;
+    if(swipe.lock===null){
+      if(Math.abs(dx)<10&&Math.abs(dy)<10)return;
+      swipe.lock=Math.abs(dx)>Math.abs(dy)?'x':'no';
+    }
+    if(swipe.lock!=='x')return;
+    e.preventDefault();
+    swipe.dx=dx;
+    sheet.style.transition='none';
+    sheet.style.transform='translateX('+dx*0.7+'px)';
+    sheet.style.opacity=String(1-Math.min(.4,Math.abs(dx)/500));
+  },{passive:false});
+  sheet.addEventListener('touchend',function(){
+    if(swipe.animating){swipe.lock=null;return}
+    if(swipe.lock!=='x'){swipe.lock=null;return}
+    var dx=swipe.dx;swipe.lock=null;
+    var w=window.innerWidth*0.35;
+    swipe.animating=true;
+    if(Math.abs(dx)<60){ // 未过阈值：弹回
+      var back=sheet.animate([
+        {transform:sheet.style.transform,opacity:+sheet.style.opacity||1},
+        {transform:'none',opacity:1}
+      ],{duration:180,easing:'ease-out'});
+      back.onfinish=function(){swipeReset();swipe.animating=false};
+      return;
+    }
+    var dir=dx<0?1:-1; // 左滑→下一天，右滑→前一天
+    var out=sheet.animate([
+      {transform:sheet.style.transform,opacity:+sheet.style.opacity||1},
+      {transform:'translateX('+(-dir*w)+'px)',opacity:0}
+    ],{duration:170,easing:'ease-in'});
+    out.onfinish=function(){
+      shift(dir); // 换日期并重渲染
+      sheet.style.transform='translateX('+(dir*w)+'px)';
+      sheet.style.opacity='0';
+      var inp=sheet.animate([
+        {transform:'translateX('+(dir*w)+'px)',opacity:0},
+        {transform:'none',opacity:1}
+      ],{duration:230,easing:'ease-out'});
+      inp.onfinish=function(){swipeReset();swipe.animating=false};
+    };
+  });
 
   render();
 
