@@ -416,11 +416,12 @@
     <div class="rembox">
       <div class="remtask" id="remTaskName"></div>
       <label>提醒时间<input type="datetime-local" id="remTime"></label>
-      <label>ntfy 主题<input type="text" id="remTopic" placeholder="如 dayplan-momo123" autocomplete="off"></label>
-      <div class="remhint">手机安装 ntfy 应用并订阅同一主题，浏览器关闭时也能收到系统推送（定时最长 3 天）；日历文件导入系统日历后由系统提醒。</div>
+      <label>推送服务地址<input type="text" id="remWorker" placeholder="https://xxxx.workers.dev" autocomplete="off"></label>
+      <label>访问口令<input type="text" id="remKey" placeholder="与推送桥一致的自定义口令" autocomplete="off"></label>
+      <div class="remhint">微信推送：提醒存入你的 Cloudflare 推送桥，到点自动发到微信（浏览器关闭也有效）；日历：导出 .ics 导入系统日历，作为不依赖网络的兜底。</div>
       <div class="remstatus" id="remStatus"></div>
       <div class="rembtns">
-        <button id="remNtfy" type="button">ntfy 推送</button>
+        <button id="remWx" type="button">微信推送</button>
         <button id="remIcs" type="button">下载日历文件</button>
         <button id="remAllIcs" type="button">导出全部提醒</button>
         <button id="remClose" type="button">关闭</button>
@@ -623,7 +624,11 @@
     remTaskId=id;
     document.getElementById('remTaskName').textContent=x.text;
     document.getElementById('remTime').value=x.remind||toLocalInput(new Date(Date.now()+3600e3));
-    document.getElementById('remTopic').value=localStorage.getItem('dayplan.ntfy')||'';
+    try{
+      var wx=JSON.parse(localStorage.getItem('dayplan.wx'))||{};
+      document.getElementById('remWorker').value=wx.url||'';
+      document.getElementById('remKey').value=wx.key||'';
+    }catch(e){}
     document.getElementById('remStatus').textContent='';
     document.getElementById('remDialog').hidden=false;
   }
@@ -637,41 +642,32 @@
     if(e.target===this)closeRemind();
   });
   document.addEventListener('keydown',function(e){if(e.key==='Escape')closeRemind()});
-  document.getElementById('remNtfy').addEventListener('click',function(){
-    var topic=document.getElementById('remTopic').value.trim();
+  document.getElementById('remWx').addEventListener('click',function(){
+    var url=document.getElementById('remWorker').value.trim().replace(/\/+$/,'');
+    var key=document.getElementById('remKey').value.trim();
     var v=document.getElementById('remTime').value;
     var st=document.getElementById('remStatus');
     if(!v){st.textContent='⚠️ 请先选择提醒时间';return}
-    if(!topic){st.textContent='⚠️ 请先填写 ntfy 主题（手机上需订阅同一主题）';return}
-    var delay=Math.floor((new Date(v)-Date.now())/1000);
-    if(delay<60){st.textContent='⚠️ 提醒时间请设在 1 分钟以后';return}
-    if(delay>3*86400){st.textContent='⚠️ ntfy 定时最长 3 天，更远的提醒请用日历文件';return}
-    var h=Math.floor(delay/3600),m=Math.round(delay%3600/60);
-    var dur=(h?h+'h':'')+(m||!h?m+'m':'');if(!dur)dur='1m';
-    localStorage.setItem('dayplan.ntfy',topic);
+    if(!url||!key){st.textContent='⚠️ 请先填写推送服务地址和访问口令';return}
+    var when=new Date(v).getTime();
+    if(isNaN(when)||when-Date.now()<60e3){st.textContent='⚠️ 提醒时间请设在 1 分钟以后';return}
+    localStorage.setItem('dayplan.wx',JSON.stringify({url:url,key:key}));
     var btn=this;btn.disabled=true;
     var text=document.getElementById('remTaskName').textContent;
-    var base='https://ntfy.sh/'+encodeURIComponent(topic);
-    var okMsg='✅ 已提交 ntfy，约 '+dur.replace(/(\d)([hm])/g,'$1$2 ')+' 后送达，浏览器关闭也会推';
-    function done(ok,err){
+    fetch(url+'/add',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({key:key,text:text,when:when})})
+    .then(function(r){return r.json()})
+    .then(function(j){
       btn.disabled=false;
-      if(ok){st.textContent=okMsg;setRemind(remTaskId,v)}
-      else st.textContent=err;
-    }
-    fetch(base,{method:'POST',
-      headers:{'Title':'⏰ 待办提醒','Priority':'high','Tags':'bell','Delay':dur},
-      body:text})
-    .catch(function(){ // POST(带自定义头)失败：换 GET 查询参数方式重试（无 CORS 预检）
-      return fetch(base+'/publish?title='+encodeURIComponent('⏰ 待办提醒')+
-        '&priority=high&tags=bell&delay='+dur+'&message='+encodeURIComponent(text));
-    })
-    .then(function(r){
-      if(!r)throw new Error('no');
-      if(r.ok){done(true)}
-      else r.text().then(function(t){done(false,'❌ ntfy 返回错误：'+t.slice(0,90))});
-    })
-    .catch(function(){
-      done(false,'❌ 两种请求方式都失败：当前网络可能拦截了 ntfy.sh，试试切换 Wi-Fi/流量再发，或改用日历文件');
+      if(j&&j.ok){
+        st.textContent='✅ 已加入微信推送队列，到点自动发到你微信（浏览器关闭也有效）';
+        setRemind(remTaskId,v);
+      }else{
+        st.textContent='❌ 推送服务返回错误：'+((j&&j.error)||'未知');
+      }
+    }).catch(function(){
+      btn.disabled=false;
+      st.textContent='❌ 无法连接推送服务，请检查地址是否正确';
     });
   });
   document.getElementById('remIcs').addEventListener('click',function(){
