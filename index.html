@@ -416,9 +416,10 @@
     <div class="rembox">
       <div class="remtask" id="remTaskName"></div>
       <label>提醒时间<input type="datetime-local" id="remTime"></label>
+      <label>推送桥地址（可选）<input type="text" id="remWorker" placeholder="https://xxx.workers.dev，填了关浏览器也能推" autocomplete="off"></label>
       <label>WxPusher appToken<input type="text" id="remToken" placeholder="AT_ 开头" autocomplete="off"></label>
       <label>WxPusher UID<input type="text" id="remUid" placeholder="UID_ 开头" autocomplete="off"></label>
-      <div class="remhint">微信推送：到点后由此页面通过 WxPusher 发到你微信——需页面保持打开（手机/电脑任一台均可，可在后台）；日历：导出 .ics 导入系统日历，作为不依赖网络的兜底。</div>
+      <div class="remhint">填了推送桥地址：提醒存入服务器，到点由服务器发到 WxPusher App，浏览器关闭也有效；不填：由本页面到点直发（需页面保持打开）。日历导出作为零依赖兜底。</div>
       <div class="remstatus" id="remStatus"></div>
       <div class="rembtns">
         <button id="remWx" type="button">微信推送</button>
@@ -625,7 +626,8 @@
     document.getElementById('remTaskName').textContent=x.text;
     document.getElementById('remTime').value=x.remind||toLocalInput(new Date(Date.now()+3600e3));
     try{
-      var wx=JSON.parse(localStorage.getItem('dayplan.wxd'))||{};
+      var wx=JSON.parse(localStorage.getItem('dayplan.wx'))||{};
+      document.getElementById('remWorker').value=wx.url||'';
       document.getElementById('remToken').value=wx.token||'';
       document.getElementById('remUid').value=wx.uid||'';
     }catch(e){}
@@ -633,8 +635,8 @@
     document.getElementById('remDialog').hidden=false;
   }
   function closeRemind(){document.getElementById('remDialog').hidden=true;remTaskId=null}
-  function setRemind(id,iso){
-    var list=load();list.forEach(function(t){if(t.id===id)t.remind=iso});
+  function setRemind(id,iso,via){
+    var list=load();list.forEach(function(t){if(t.id===id){t.remind=iso;t.remindVia=via||'local'}});
     save(list);render();
   }
   document.getElementById('remClose').addEventListener('click',closeRemind);
@@ -642,7 +644,9 @@
     if(e.target===this)closeRemind();
   });
   document.addEventListener('keydown',function(e){if(e.key==='Escape')closeRemind()});
+  var BRIDGE_KEY='dayplan-momo-7f3k9';
   document.getElementById('remWx').addEventListener('click',function(){
+    var url=document.getElementById('remWorker').value.trim().replace(/\/+$/,'');
     var token=document.getElementById('remToken').value.trim();
     var uid=document.getElementById('remUid').value.trim();
     var v=document.getElementById('remTime').value;
@@ -651,9 +655,30 @@
     if(!token||!uid){st.textContent='⚠️ 请先填写 appToken 和 UID（WxPusher 控制台获取）';return}
     var when=new Date(v).getTime();
     if(isNaN(when)||when-Date.now()<60e3){st.textContent='⚠️ 提醒时间请设在 1 分钟以后';return}
-    localStorage.setItem('dayplan.wxd',JSON.stringify({token:token,uid:uid}));
-    setRemind(remTaskId,v); // render() 会重新挂载定时器
-    st.textContent='✅ 已设置，到点自动发到你微信（保持页面打开，后台也可以）';
+    localStorage.setItem('dayplan.wx',JSON.stringify({url:url,token:token,uid:uid}));
+    var text=document.getElementById('remTaskName').textContent;
+    if(url){ // 服务器调度：关浏览器也有效
+      var btn=this;btn.disabled=true;
+      fetch(url+'/add',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({key:BRIDGE_KEY,text:text,when:when})})
+      .then(function(r){return r.json()})
+      .then(function(j){
+        btn.disabled=false;
+        if(j&&j.ok){
+          st.textContent='✅ 已存入服务器，到点由服务器推送到 WxPusher App（浏览器关闭也有效）';
+          setRemind(remTaskId,v,'server');
+        }else{
+          st.textContent='❌ 推送桥返回错误：'+((j&&j.error)||'未知');
+        }
+      }).catch(function(){
+        btn.disabled=false;
+        st.textContent='❌ 无法连接推送桥（地址错误或网络拦截），可清空地址改用页面调度';
+      });
+      return;
+    }
+    // 页面调度：本页到点直发
+    setRemind(remTaskId,v,'local');
+    st.textContent='✅ 已设置，到点由此页面发送到 WxPusher App（保持页面打开，后台也可以）';
   });
   document.getElementById('remIcs').addEventListener('click',function(){
     var v=document.getElementById('remTime').value;
@@ -1030,7 +1055,7 @@
     }).catch(function(){ /* 网络失败：保留标记，下分钟重试 */ });
   }
   function armWx(x){
-    if(!x.remind){clearTimeout(wxTimers[x.id]);return}
+    if(!x.remind||x.remindVia==='server'){clearTimeout(wxTimers[x.id]);return} // 服务器调度的由服务器负责
     var delay=new Date(x.remind)-Date.now();
     clearTimeout(wxTimers[x.id]);
     if(isNaN(delay))return;
