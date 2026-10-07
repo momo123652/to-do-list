@@ -1466,11 +1466,6 @@ window.addEventListener('error',function(ev){
   }
   function themeIcon(t){themeBtn.textContent=t==='light'?'🌙':'☀️'}
   var reduceMotion=window.matchMedia('(prefers-reduced-motion: reduce)');
-  function iconIn(){
-    themeBtn.animate([{transform:'rotate(-150deg) scale(0)',opacity:.3},
-      {transform:'rotate(0deg) scale(1)',opacity:1}],
-      {duration:260,easing:'cubic-bezier(.2,.7,.3,1)'});
-  }
   themeBtn.addEventListener('click',function(e){
     var t=(localStorage.getItem('dayplan.theme')||'dark')==='light'?'dark':'light';
     localStorage.setItem('dayplan.theme',t);
@@ -1479,24 +1474,24 @@ window.addEventListener('error',function(ev){
       themeIcon(t);
     };
     if(document.startViewTransition&&!reduceMotion.matches){
+      // 只保留圆形波纹：缓出收尾，不叠加其他动画
       var x=e.clientX||window.innerWidth-40,y=e.clientY||40;
       var vt=document.startViewTransition(doIt);
       vt.ready.then(function(){
         var r=Math.hypot(Math.max(x,window.innerWidth-x),Math.max(y,window.innerHeight-y));
         document.documentElement.animate(
           {clipPath:['circle(0px at '+x+'px '+y+'px)','circle('+r+'px at '+x+'px '+y+'px)']},
-          {duration:650,easing:'cubic-bezier(.3,.5,.2,1)',pseudoElement:'::view-transition-new(root)'});
-        document.documentElement.animate(
-          {opacity:[1,0]},
-          {duration:650,easing:'ease-out',pseudoElement:'::view-transition-old(root)'});
+          {duration:550,easing:'cubic-bezier(.2,.6,.3,1)',pseudoElement:'::view-transition-new(root)'});
       }).catch(function(){});
-      vt.finished.then(iconIn).catch(function(){});
     }else if(reduceMotion.matches){doIt()}
     else{
+      // 旧浏览器：图标旋转缩小 → 换主题 → 新图标旋转放大
       themeBtn.animate([{transform:'rotate(0deg) scale(1)'},{transform:'rotate(150deg) scale(0)'}],
         {duration:160,easing:'ease-in'}).onfinish=function(){
         doIt();
-        iconIn();
+        themeBtn.animate([{transform:'rotate(-150deg) scale(0)',opacity:.4},
+          {transform:'rotate(0deg) scale(1)',opacity:1}],
+          {duration:240,easing:'cubic-bezier(.2,.7,.3,1)'});
       };
     }
   });
