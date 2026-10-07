@@ -1176,7 +1176,7 @@
 
   // 触摸左右滑动切换相邻日期（跟手拖动 + 滑出/滑入转场）
   var sheet=document.querySelector('.sheet');
-  var swipe={x0:0,y0:0,dx:0,lock:null,animating:false};
+  var swipe={x0:0,y0:0,dx:0,lock:null,animating:false,t0:0};
   function swipeReset(){sheet.style.transform='';sheet.style.opacity='';sheet.classList.remove('swiping')}
   sheet.addEventListener('touchstart',function(e){
     if(!swipe.animating){
@@ -1184,7 +1184,7 @@
       sheet.style.transform='';sheet.style.opacity='';
     }
     if(swipe.animating||e.touches.length!==1)return;
-    swipe.x0=e.touches[0].clientX;
+    swipe.x0=e.touches[0].clientX;swipe.t0=Date.now();
     swipe.y0=e.touches[0].clientY;
     swipe.dx=0;swipe.lock=null;
   },{passive:true});
@@ -1208,17 +1208,26 @@
     sheet.style.transform='translateX('+dx*0.7+'px)';
     sheet.style.opacity=String(1-Math.min(.4,Math.abs(dx)/500));
   },{passive:false});
-  sheet.addEventListener('touchend',function(){
-    if(swipe.animating){swipe.lock=null;return}
-    if(swipe.lock!=='x'){swipe.lock=null;return}
-    var dx=swipe.dx;swipe.lock=null;
+  sheet.addEventListener('touchend',function(e){
+    var wasLocked=swipe.lock==='x';
+    swipe.lock=null;
+    if(swipe.animating||!wasLocked)return;
+    // 用手指最终位置判定（快速轻扫时最后的 touchmove 可能位移不足）
+    var t=e.changedTouches[0];
+    var dx=t.clientX-swipe.x0;
+    var dt=Date.now()-(swipe.t0||0);
     var w=window.innerWidth*0.35;
     swipe.animating=true;
-    if(Math.abs(dx)<60){ // 未过阈值：弹回
+    // 卡死自愈：无论转场是否正常收尾，600ms 后强制恢复可滑动状态
+    setTimeout(function(){
+      if(swipe.animating){swipe.animating=false;swipeReset()}
+    },700);
+    var go=Math.abs(dx)>60||(Math.abs(dx)>35&&dt<250); // 慢滑 60px / 快甩 35px
+    if(!go){ // 未过阈值：弹回
       var back=sheet.animate([
         {transform:sheet.style.transform,opacity:+sheet.style.opacity||1},
         {transform:'none',opacity:1}
-      ],{duration:180,easing:'ease-out'});
+      ],{duration:150,easing:'ease-out'});
       back.onfinish=function(){swipeReset();swipe.animating=false};
       return;
     }
@@ -1226,15 +1235,17 @@
     var out=sheet.animate([
       {transform:sheet.style.transform,opacity:+sheet.style.opacity||1},
       {transform:'translateX('+(-dir*w)+'px)',opacity:0}
-    ],{duration:170,easing:'ease-in'});
+    ],{duration:130,easing:'ease-in'});
     out.onfinish=function(){
-      shift(dir); // 换日期并重渲染
+      try{
+        shift(dir); // 换日期并重渲染
+      }catch(err){}
       sheet.style.transform='translateX('+(dir*w)+'px)';
       sheet.style.opacity='0';
       var inp=sheet.animate([
         {transform:'translateX('+(dir*w)+'px)',opacity:0},
         {transform:'none',opacity:1}
-      ],{duration:230,easing:'ease-out'});
+      ],{duration:170,easing:'ease-out'});
       inp.onfinish=function(){swipeReset();swipe.animating=false};
     };
   });
