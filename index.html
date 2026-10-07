@@ -467,6 +467,7 @@
     <input type="text" id="newTask" placeholder="要做点什么？可 Ctrl+V 粘贴截图" maxlength="120" autocomplete="off">
     <button type="button" class="pri" id="periodBtn" data-v="1" title="切换时间段">中午</button>
     <div id="imgPreview"></div>
+    <button type="button" class="clip" id="pasteBtn" title="粘贴剪贴板文字/图片">📋</button>
     <button type="button" class="clip" id="clipBtn" title="添加图片">📎</button>
     <button type="button" class="pri" id="priBtn" data-v="0" title="切换优先级">普通</button>
     <button type="submit" class="add">添加</button>
@@ -602,6 +603,33 @@
   }
   document.getElementById('clipBtn').addEventListener('click',function(){
     document.getElementById('imgInput').click();
+  });
+  // 一键粘贴：微信里"复制"消息后，点此按钮直接进输入框；复制的图片直接变附件
+  document.getElementById('pasteBtn').addEventListener('click',function(){
+    if(!navigator.clipboard||!navigator.clipboard.read){
+      alert('此浏览器不支持读取剪贴板，请长按输入框选择"粘贴"');
+      return;
+    }
+    navigator.clipboard.read().then(async function(items){
+      for(const item of items){
+        if(item.types.includes('text/plain')){
+          const blob=await item.getType('text/plain');
+          const t=(await blob.text()).trim();
+          if(t){
+            const inp=document.getElementById('newTask');
+            inp.value=(inp.value?inp.value+' ':'')+t.slice(0,120);
+          }
+        }else{
+          const it=item.types.find(function(t){return t.indexOf('image/')===0});
+          if(it){
+            const blob=await item.getType(it);
+            compressImage(blob,setPending);
+          }
+        }
+      }
+    }).catch(function(){
+      alert('读取剪贴板失败（未授权或内容不支持），请长按输入框选择"粘贴"');
+    });
   });
   document.getElementById('imgInput').addEventListener('change',function(){
     if(this.files[0])compressImage(this.files[0],setPending);
