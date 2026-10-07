@@ -1464,15 +1464,21 @@ window.addEventListener('error',function(ev){
     document.body.classList.toggle('light',t==='light');
     themeBtn.textContent=t==='light'?'🌙':'☀️';
   }
+  function themeIcon(t){themeBtn.textContent=t==='light'?'🌙':'☀️'}
+  var reduceMotion=window.matchMedia('(prefers-reduced-motion: reduce)');
+  function iconIn(){
+    themeBtn.animate([{transform:'rotate(-150deg) scale(0)',opacity:.3},
+      {transform:'rotate(0deg) scale(1)',opacity:1}],
+      {duration:260,easing:'cubic-bezier(.2,.7,.3,1)'});
+  }
   themeBtn.addEventListener('click',function(e){
     var t=(localStorage.getItem('dayplan.theme')||'dark')==='light'?'dark':'light';
     localStorage.setItem('dayplan.theme',t);
     var doIt=function(){
       document.body.classList.toggle('light',t==='light');
-      themeBtn.textContent=t==='light'?'🌙':'☀️';
+      themeIcon(t);
     };
-    // 优先用视图过渡：从按钮位置扩散的圆形波纹
-    if(document.startViewTransition&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+    if(document.startViewTransition&&!reduceMotion.matches){
       var x=e.clientX||window.innerWidth-40,y=e.clientY||40;
       var vt=document.startViewTransition(doIt);
       vt.ready.then(function(){
@@ -1484,7 +1490,15 @@ window.addEventListener('error',function(ev){
           {opacity:[1,0]},
           {duration:650,easing:'ease-out',pseudoElement:'::view-transition-old(root)'});
       }).catch(function(){});
-    }else doIt();
+      vt.finished.then(iconIn).catch(function(){});
+    }else if(reduceMotion.matches){doIt()}
+    else{
+      themeBtn.animate([{transform:'rotate(0deg) scale(1)'},{transform:'rotate(150deg) scale(0)'}],
+        {duration:160,easing:'ease-in'}).onfinish=function(){
+        doIt();
+        iconIn();
+      };
+    }
   });
   applyTheme();
 
