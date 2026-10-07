@@ -543,9 +543,17 @@
       </div>
     </div>
   </div>
+  <div id='verTag' style='position:fixed;bottom:6px;right:10px;font-size:10px;color:#8CA3BF;opacity:.4;font-family:ui-monospace,monospace'>v7</div>
 </main>
 
 <script>
+window.addEventListener('error',function(ev){
+  var b=document.getElementById('errBanner');
+  if(!b){b=document.createElement('div');b.id='errBanner';
+    b.style.cssText='position:fixed;bottom:8px;left:8px;right:8px;z-index:999;background:#8c2f2f;color:#fff;font-size:11px;padding:8px 10px;border-radius:8px;word-break:break-all';
+    (document.body||document.documentElement).appendChild(b);}
+  b.textContent='脚本错误: '+(ev.message||'未知')+' (第'+(ev.lineno||'?')+'行)';
+});
 (function(){
   var KEY='dayplan.v1.';
   // 时段从 3 档扩为 4 档：旧数据里 period=2（晚上）整体平移为 3
