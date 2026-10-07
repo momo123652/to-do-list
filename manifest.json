@@ -2,6 +2,12 @@
   "name": "今日待办",
   "short_name": "今日待办",
   "start_url": "./",
+  "share_target": {
+    "action": "./",
+    "method": "GET",
+    "enctype": "application/x-www-form-urlencoded",
+    "params": { "title": "title", "text": "text", "url": "url" }
+  },
   "display": "standalone",
   "background_color": "#0B1220",
   "theme_color": "#0B1220",
