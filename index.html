@@ -997,13 +997,11 @@ window.addEventListener('error',function(ev){
         li.append(th);
       }
 
-      if(x.carried){
-        var cc=document.createElement('button');
-        cc.type='button';cc.className='carry';cc.textContent='顺延';
-        cc.title='点击顺延到明天';
-        cc.addEventListener('click',function(){openCfm(x.id)});
-        li.append(cc);
-      }
+      var cc=document.createElement('button');
+      cc.type='button';cc.className='carry';cc.textContent='顺延';
+      cc.title=x.carried?'从之前顺延而来，点击可再次顺延到明天':'点击顺延到明天';
+      cc.addEventListener('click',function(){openCfm(x.id)});
+      li.append(cc);
 
       var bell=document.createElement('button');
       bell.className='bell'+(x.remind?' on':'');bell.type='button';bell.textContent='🔔';
@@ -1481,7 +1479,10 @@ window.addEventListener('error',function(ev){
         var r=Math.hypot(Math.max(x,window.innerWidth-x),Math.max(y,window.innerHeight-y));
         document.documentElement.animate(
           {clipPath:['circle(0px at '+x+'px '+y+'px)','circle('+r+'px at '+x+'px '+y+'px)']},
-          {duration:450,easing:'ease-in-out',pseudoElement:'::view-transition-new(root)'});
+          {duration:650,easing:'cubic-bezier(.3,.5,.2,1)',pseudoElement:'::view-transition-new(root)'});
+        document.documentElement.animate(
+          {opacity:[1,0]},
+          {duration:650,easing:'ease-out',pseudoElement:'::view-transition-old(root)'});
       }).catch(function(){});
     }else doIt();
   });
