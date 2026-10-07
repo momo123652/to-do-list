@@ -77,7 +77,11 @@
     line-height:1.25;
   }
   h1 .weekday{font-size:.5em;color:var(--muted);margin-left:.5em;font-weight:600}
-  .daynav{display:flex;gap:6px;align-items:center;margin-left:auto}
+  .daynav{display:flex;gap:10px;align-items:flex-start;margin-left:auto}
+  .navitem{display:flex;flex-direction:column;align-items:center;gap:4px}
+  .navitem i{font-style:normal;font-size:10px;line-height:1;
+    color:var(--muted);white-space:nowrap;opacity:.85}
+  .navitem .backtoday{margin-bottom:14px} /* 有文字的胶囊按钮与圆形按钮对齐 */
   .daynav button{
     flex:none;
     border:1px solid var(--line);background:var(--paper);color:var(--muted);
@@ -465,12 +469,12 @@
       <h1 id="dateTitle">今日待办</h1>
       <div class="dateart" aria-hidden="true"></div>
       <div class="daynav">
-        <button id="searchBtn" title="搜索待办">🔍</button>
-        <button id="calBtn" title="选择日期">▦</button>
-        <button id="prevDay" title="前一天" aria-label="前一天">‹</button>
-        <button id="nextDay" title="后一天" aria-label="后一天">›</button>
-        <button id="themeBtn" title="切换深浅色">☀️</button>
-        <button id="backToday" class="backtoday" hidden>回到今天</button>
+        <span class="navitem"><button id="searchBtn" title="搜索待办">🔍</button><i>搜索</i></span>
+        <span class="navitem"><button id="calBtn" title="选择日期">▦</button><i>日历</i></span>
+        <span class="navitem"><button id="prevDay" title="前一天" aria-label="前一天">‹</button><i>前一天</i></span>
+        <span class="navitem"><button id="nextDay" title="后一天" aria-label="后一天">›</button><i>后一天</i></span>
+        <span class="navitem"><button id="themeBtn" title="切换深浅色">☀️</button><i>主题</i></span>
+        <span class="navitem"><button id="backToday" class="backtoday" hidden>回到今天</button></span>
       </div>
     </div>
     <div class="calwrap">
