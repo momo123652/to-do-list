@@ -1,7 +1,7 @@
 {
   "name": "今日待办",
   "short_name": "今日待办",
-  "start_url": "./今日待办.html",
+  "start_url": "./",
   "display": "standalone",
   "background_color": "#0B1220",
   "theme_color": "#0B1220",
