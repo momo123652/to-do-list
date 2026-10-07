@@ -1207,11 +1207,20 @@
   var swipe={x0:0,y0:0,dx:0,lock:null,animating:false};
   function swipeReset(){sheet.style.transform='';sheet.style.opacity='';sheet.classList.remove('swiping')}
   sheet.addEventListener('touchstart',function(e){
+    if(!swipe.animating){
+      sheet.classList.remove('swiping');
+      sheet.style.transform='';sheet.style.opacity='';
+    }
     if(swipe.animating||e.touches.length!==1)return;
     swipe.x0=e.touches[0].clientX;
     swipe.y0=e.touches[0].clientY;
     swipe.dx=0;swipe.lock=null;
   },{passive:true});
+  sheet.addEventListener('touchcancel',function(){
+    sheet.classList.remove('swiping');
+    sheet.style.transform='';sheet.style.opacity='';
+    swipe.lock=null;swipe.dx=0;
+  });
   sheet.addEventListener('touchmove',function(e){
     if(swipe.animating||swipe.lock==='no')return;
     var t=e.touches[0];
