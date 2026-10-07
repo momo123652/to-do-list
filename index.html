@@ -306,8 +306,10 @@
   li.flash{animation:flashbg 1.2s ease}
 
   /* ---- 顺延标记 / 拖拽 / 搜索 ---- */
-  .carry{flex:none;font-size:11px;color:var(--accent);
-    border:1px dashed var(--accent);border-radius:6px;padding:0 5px;opacity:.85}
+  .carry{flex:none;font-size:11px;color:var(--accent);cursor:pointer;
+    border:1px dashed var(--accent);border-radius:6px;padding:0 5px;opacity:.85;
+    background:none;font-family:inherit;transition:background .15s,color .15s}
+  .carry:hover{background:var(--accent-soft)}
   li[data-id]{touch-action:pan-y}
   li.dragging{z-index:5;opacity:.92;background:var(--accent-soft);
     box-shadow:0 8px 24px rgba(0,0,0,.4);border-radius:8px}
@@ -352,6 +354,20 @@
   body.light .lbbtn{background:#fff;color:var(--ink)}
   body.light li.dragging{box-shadow:0 8px 24px rgba(23,37,29,.25)}
 
+  /* ---- 滑动转场性能：动画期间关掉毛玻璃 ---- */
+  .sheet.swiping{will-change:transform}
+  .sheet.swiping .composer,.sheet.swiping .rembox,.sheet.swiping .cal,
+  .sheet.swiping .lightbox{
+    -webkit-backdrop-filter:none;backdrop-filter:none;
+    background:rgba(11,18,32,.97);
+  }
+  body.light .sheet.swiping .composer,body.light .sheet.swiping .cal,
+  body.light .sheet.swiping .rembox{
+    background:rgba(251,252,250,.97);
+  }
+  .primarybtn{background:linear-gradient(180deg,#22D3EE,#0891B2)!important;
+    color:#031018!important;border:none!important;font-weight:500!important}
+
   .empty{
     margin-top:34px;text-align:center;color:var(--muted);font-size:14px;
     font-family:"Noto Serif SC","SimSun",serif;
@@ -393,11 +409,19 @@
   .bell.on{filter:none;opacity:1}
   .remdlg{position:fixed;inset:0;z-index:60;background:rgba(3,8,18,.8);
     -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
-    display:flex;align-items:center;justify-content:center;padding:20px}
+    display:flex;align-items:center;justify-content:center;padding:20px;
+    opacity:0;transition:opacity .22s ease}
+  .remdlg.open{opacity:1}
   .remdlg[hidden]{display:none}
   .rembox{width:100%;max-width:340px;background:rgba(17,27,47,.96);
     border:1px solid var(--line);border-radius:12px;padding:18px;
-    box-shadow:0 12px 40px rgba(0,0,0,.5);display:flex;flex-direction:column;gap:12px}
+    box-shadow:0 12px 40px rgba(0,0,0,.5);display:flex;flex-direction:column;gap:12px;
+    transform:translateY(16px) scale(.94);
+    transition:transform .22s cubic-bezier(.2,.7,.3,1)}
+  .remdlg.open .rembox{transform:none}
+  @media (prefers-reduced-motion:reduce){
+    .remdlg{transition:none}.rembox{transform:none;transition:none}
+  }
   .remtask{font-size:15px;color:var(--ink);word-break:break-word;line-height:1.5}
   .rembox label{display:flex;align-items:center;justify-content:space-between;gap:10px;
     font-size:13px;color:var(--muted);flex-wrap:wrap}
@@ -477,10 +501,20 @@
   <ul id="list"></ul>
   <div class="empty" id="empty" hidden>纸上还空着<small>写下今天的第一件事</small></div>
 
+  <div class="remdlg" id="cfmDialog" hidden>
+    <div class="rembox">
+      <div class="remtask" id="cfmText"></div>
+      <div class="remhint">确认把这条待办顺延到明天吗？它将移动到明天的列表中。</div>
+      <div class="rembtns">
+        <button id="cfmNo" type="button">取消</button>
+        <button id="cfmYes" type="button" class="primarybtn">确认顺延</button>
+      </div>
+    </div>
+  </div>
+
   <div class="lightbox" id="lightbox" hidden></div>
 
-  <div class="remdlg" id="remDialog" hidden>
-    <div class="rembox">
+  <div class="remdlg" id="remDialog" hidden>    <div class="rembox">
       <div class="remtask" id="remTaskName"></div>
       <div class="remrow">
         <label>时段<select id="remPeriod">
@@ -741,8 +775,16 @@
     }catch(e){}
     document.getElementById('remStatus').textContent='';
     document.getElementById('remDialog').hidden=false;
+    requestAnimationFrame(function(){
+      document.getElementById('remDialog').classList.add('open');
+    });
   }
-  function closeRemind(){document.getElementById('remDialog').hidden=true;remTaskId=null}
+  function closeRemind(){
+    var dlg=document.getElementById('remDialog');
+    if(dlg.hidden)return;
+    dlg.classList.remove('open');
+    setTimeout(function(){dlg.hidden=true;remTaskId=null},220);
+  }
   ['remPeriod','remRepeat'].forEach(function(id){
     document.getElementById(id).addEventListener('change',function(){
       if(remTaskId==null)return;
@@ -764,6 +806,47 @@
     if(e.target===this)closeRemind();
   });
   document.addEventListener('keydown',function(e){if(e.key==='Escape')closeRemind()});
+
+  /* ---- 顺延确认弹窗 ---- */
+  var cfmTaskId=null;
+  function openCfm(id){
+    var x=load().find(function(t){return t.id===id});
+    if(!x)return;
+    cfmTaskId=id;
+    document.getElementById('cfmText').textContent='「'+x.text+'」';
+    var dlg=document.getElementById('cfmDialog');
+    dlg.hidden=false;
+    requestAnimationFrame(function(){dlg.classList.add('open')});
+  }
+  function closeCfm(){
+    var dlg=document.getElementById('cfmDialog');
+    if(dlg.hidden)return;
+    dlg.classList.remove('open');
+    setTimeout(function(){dlg.hidden=true;cfmTaskId=null},220);
+  }
+  document.getElementById('cfmNo').addEventListener('click',closeCfm);
+  document.getElementById('cfmYes').addEventListener('click',function(){
+    var id=cfmTaskId;
+    closeCfm();
+    if(id==null)return;
+    var list=load();
+    var x=list.find(function(t){return t.id===id});
+    if(!x)return;
+    var d=parse(state.date);d.setDate(d.getDate()+1);
+    var nd=fmt(d),arr;
+    try{arr=JSON.parse(localStorage.getItem(KEY+nd))||[]}catch(e){arr=[]}
+    x.carried=true;x.remind=null;x.remindVia=null;
+    arr.push(x);
+    try{localStorage.setItem(KEY+nd,JSON.stringify(arr))}catch(e){}
+    save(sortList(list.filter(function(t){return t.id!==id})));
+    render();
+  });
+  document.getElementById('cfmDialog').addEventListener('click',function(e){
+    if(e.target===this)closeCfm();
+  });
+  document.addEventListener('keydown',function(e){
+    if(e.key==='Escape'&&!document.getElementById('cfmDialog').hidden)closeCfm();
+  });
   var BRIDGE_KEY='dayplan-momo-7f3k9';
   document.getElementById('remWx').addEventListener('click',function(){
     var url=document.getElementById('remWorker').value.trim().replace(/\/+$/,'');
@@ -917,8 +1000,10 @@
       }
 
       if(x.carried){
-        var cc=document.createElement('span');
-        cc.className='carry';cc.textContent='顺延';cc.title='从之前的日期顺延而来';
+        var cc=document.createElement('button');
+        cc.type='button';cc.className='carry';cc.textContent='顺延';
+        cc.title='点击顺延到明天';
+        cc.addEventListener('click',function(){openCfm(x.id)});
         li.append(cc);
       }
 
@@ -1120,7 +1205,7 @@
   // 触摸左右滑动切换相邻日期（跟手拖动 + 滑出/滑入转场）
   var sheet=document.querySelector('.sheet');
   var swipe={x0:0,y0:0,dx:0,lock:null,animating:false};
-  function swipeReset(){sheet.style.transform='';sheet.style.opacity=''}
+  function swipeReset(){sheet.style.transform='';sheet.style.opacity='';sheet.classList.remove('swiping')}
   sheet.addEventListener('touchstart',function(e){
     if(swipe.animating||e.touches.length!==1)return;
     swipe.x0=e.touches[0].clientX;
@@ -1137,7 +1222,7 @@
     }
     if(swipe.lock!=='x')return;
     e.preventDefault();
-    swipe.dx=dx;
+    swipe.dx=dx;sheet.classList.add('swiping');
     sheet.style.transition='none';
     sheet.style.transform='translateX('+dx*0.7+'px)';
     sheet.style.opacity=String(1-Math.min(.4,Math.abs(dx)/500));
