@@ -1016,7 +1016,7 @@
 
     var emptyState=list.length===0;
     document.getElementById('empty').hidden=!emptyState;
-    list.forEach(armWx); // 每次渲染后重新校准微信提醒定时器
+    try{list.forEach(armWx)}catch(e){} // 每次渲染后重新校准微信提醒定时器
   }
 
   function toggle(id){
@@ -1272,7 +1272,7 @@
     save(sortList(list));
   }
 
-  rollover();
+  try{rollover()}catch(e){}
   render();
   /* ---- 页面内定时器：到点直发 WxPusher ---- */
   var wxTimers={};
@@ -1469,6 +1469,7 @@
   }
   tickClock();
   setInterval(tickClock,1000);
+  setInterval(tickClock,60000);
   syncPeriod();
 })();
 </script>
