@@ -372,6 +372,20 @@
   .primarybtn{background:linear-gradient(180deg,#22D3EE,#0891B2)!important;
     color:#031018!important;border:none!important;font-weight:500!important}
 
+  /* ---- 主题切换波纹动画（View Transitions） ---- */
+  ::view-transition-old(root),::view-transition-new(root){
+    animation:none;mix-blend-mode:normal}
+
+  /* ---- 浅色主题：修正残留的深色元素 ---- */
+  body.light .composer{background:rgba(252,253,251,.92);
+    border-color:rgba(23,37,29,.18);
+    box-shadow:0 4px 18px rgba(23,37,29,.1)}
+  body.light .composer .add{color:#fff}
+  body.light .del{color:rgba(23,37,29,.35)}
+  body.light .remdlg{background:rgba(45,55,48,.45);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+  body.light .remhint{color:#7d8b7f}
+  body.light .light .rembox{background:#fff}
+
   .empty{
     margin-top:34px;text-align:center;color:var(--muted);font-size:14px;
     font-family:"Noto Serif SC","SimSun",serif;
@@ -1452,9 +1466,24 @@ window.addEventListener('error',function(ev){
     document.body.classList.toggle('light',t==='light');
     themeBtn.textContent=t==='light'?'🌙':'☀️';
   }
-  themeBtn.addEventListener('click',function(){
+  themeBtn.addEventListener('click',function(e){
     var t=(localStorage.getItem('dayplan.theme')||'dark')==='light'?'dark':'light';
-    localStorage.setItem('dayplan.theme',t);applyTheme();
+    localStorage.setItem('dayplan.theme',t);
+    var doIt=function(){
+      document.body.classList.toggle('light',t==='light');
+      themeBtn.textContent=t==='light'?'🌙':'☀️';
+    };
+    // 优先用视图过渡：从按钮位置扩散的圆形波纹
+    if(document.startViewTransition&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+      var x=e.clientX||window.innerWidth-40,y=e.clientY||40;
+      var vt=document.startViewTransition(doIt);
+      vt.ready.then(function(){
+        var r=Math.hypot(Math.max(x,window.innerWidth-x),Math.max(y,window.innerHeight-y));
+        document.documentElement.animate(
+          {clipPath:['circle(0px at '+x+'px '+y+'px)','circle('+r+'px at '+x+'px '+y+'px)']},
+          {duration:450,easing:'ease-in-out',pseudoElement:'::view-transition-new(root)'});
+      }).catch(function(){});
+    }else doIt();
   });
   applyTheme();
 
