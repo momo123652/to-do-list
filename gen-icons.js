@@ -59,11 +59,11 @@ function render(size) {
   const u = size / 512;
   const px = Buffer.alloc(size * size * 4);
   const rows = [
-    { cy: 180, ring: hex('#22D3EE'), line: hex('#E6F1FF'), lw: 190, a: 1, checked: true },
-    { cy: 300, ring: hex('#8CA3BF'), line: hex('#8CA3BF'), lw: 145, a: 0.55, checked: false },
-    { cy: 420, ring: hex('#8CA3BF'), line: hex('#8CA3BF'), lw: 165, a: 0.32, checked: false },
+    { cy: 156, ring: hex('#22D3EE'), line: hex('#E6F1FF'), lw: 178, a: 1, checked: true },
+    { cy: 256, ring: hex('#8CA3BF'), line: hex('#8CA3BF'), lw: 140, a: 0.55, checked: false },
+    { cy: 356, ring: hex('#8CA3BF'), line: hex('#8CA3BF'), lw: 158, a: 0.32, checked: false },
   ];
-  const RAD = 112, LW = 14, CR = 34;
+  const RAD = 112, LW = 13, CR = 30;
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
       const X = x / u, Y = y / u;
@@ -78,7 +78,7 @@ function render(size) {
       let B = c0[2] + (c1[2] - c0[2]) * t;
       let A = bgA;
       for (const row of rows) {
-        const cy = row.cy, cx = 128;
+        const cy = row.cy, cx = 132;
         // 圆环
         const dRing = Math.abs(Math.hypot(X - cx * u, Y - cy * u) - CR * u) - LW * u / 2;
         const aRing = cov(dRing);
@@ -90,8 +90,8 @@ function render(size) {
         // 对勾（仅第一行）
         if (row.checked) {
           const dChk = Math.min(
-            sdSeg(X, Y, 113 * u, 182 * u, 126 * u, 197 * u),
-            sdSeg(X, Y, 126 * u, 197 * u, 149 * u, 166 * u)) - LW * u / 2;
+            sdSeg(X, Y, 118 * u, 158 * u, 129 * u, 171 * u),
+            sdSeg(X, Y, 129 * u, 171 * u, 151 * u, 142 * u)) - LW * u / 2;
           const aChk = cov(dChk);
           if (aChk > 0) {
             R = R * (1 - aChk) + row.ring[0] * aChk;
@@ -100,7 +100,7 @@ function render(size) {
           }
         }
         // 任务条
-        const dBar = sdRoundRect(X, Y, (190 + row.lw / 2) * u, cy * u, row.lw / 2 * u, 18 * u, 18 * u);
+        const dBar = sdRoundRect(X, Y, (188 + row.lw / 2) * u, cy * u, row.lw / 2 * u, 17 * u, 17 * u);
         const aBar = cov(dBar) * row.a;
         if (aBar > 0) {
           R = R * (1 - aBar) + row.line[0] * aBar;
